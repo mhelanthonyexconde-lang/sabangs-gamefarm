@@ -1,0 +1,59 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"><link rel="stylesheet" href="css/style.css"><title>Book a Visit – Sabang’s Gamefarm</title></head><body>
+<div id="nav"></div>
+<main class="wrap"><h2>Book a farm visit</h2><p class="mut">Pick a date and time and the bird you want to see. Payment is made in person at the farm.</p>
+<form class="card form" id="f" novalidate>
+<div><label for="name">Full name</label><input id="name"></div>
+<div><label for="phone">Phone number (09XXXXXXXXX)</label><input id="phone" inputmode="tel"></div>
+<div><label for="date">Preferred date</label><input id="date" type="date"></div>
+<div><label for="time">Preferred time</label><select id="time"><option value="">Select time</option></select></div>
+<div class="full"><label for="bird">Bird you are interested in</label><select id="bird"><option value="">Select a bird</option></select></div>
+<div class="full"><label for="msg">Message (optional)</label><textarea id="msg" rows="3" maxlength="300"></textarea></div>
+<div class="full"><p class="err" id="err"></p><p class="okmsg" id="ok"></p><button class="btn" style="width:100%" id="go">Confirm appointment</button></div></form>
+<h2 style="margin-top:40px">My appointments</h2><div class="card scroll"><table><thead><tr><th>Date</th><th>Time</th><th>Bird</th><th>Status</th><th></th></tr></thead><tbody id="mine"></tbody></table></div></main>
+<div id="foot"></div>
+<script type="module">
+import {initNav,initFooter,whenUser,db,collection,getDocs,addDoc,setDoc,updateDoc,deleteDoc,doc,query,where,serverTimestamp,esc,toast} from "./js/app.js";
+initNav("book");initFooter();
+const $=id=>document.getElementById(id);
+const user=await whenUser();
+if(!user){location.href="login.html?next="+encodeURIComponent("book.html"+location.search);}
+else{
+ $("name").value=user.displayName||"";
+ $("date").min=new Date().toLocaleDateString("en-CA");
+ for(let h=8;h<=16;h++){const t=String(h).padStart(2,"0")+":00";$("time").add(new Option(t,t));}
+ const birds=(await getDocs(collection(db,"birds"))).docs.map(d=>({id:d.id,...d.data()})).filter(b=>(b.status||"Available")==="Available");
+ birds.forEach(b=>$("bird").add(new Option(b.name+" – "+b.breed+" – "+b.weight+" lbs",b.id)));
+ $("bird").value=new URLSearchParams(location.search).get("bird")||"";
+ let list=[];const today=new Date().toLocaleDateString("en-CA");
+ async function mine(){
+  const s=await getDocs(query(collection(db,"appointments"),where("uid","==",user.uid)));
+  const r=list=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+  $("mine").innerHTML=r.length?r.map(a=>`<tr><td>${esc(a.date)}</td><td>${esc(a.time)}</td><td>${esc(a.birdName)}</td><td>${esc(a.status)}</td><td>${(a.status==="Pending"||a.status==="Confirmed")&&a.date>=today?`<button class="btn sm red" data-c="${a.id}">Cancel</button>`:""}</td></tr>`).join(""):'<tr><td colspan="5">No appointments yet.</td></tr>';
+ }
+ mine();
+ $("mine").onclick=async e=>{const id=e.target.dataset.c;if(!id)return;
+  const a=list.find(x=>x.id===id);if(!a||!confirm("Cancel your appointment on "+a.date+" at "+a.time+"?"))return;
+  e.target.disabled=true;
+  try{await updateDoc(doc(db,"appointments",id),{status:"Cancelled"});
+   if(a.slotId){try{await deleteDoc(doc(db,"slots",a.slotId));}catch{}}
+   toast("Appointment cancelled");
+  }catch(er){toast("Could not cancel: "+(er.code||er.message));}
+  mine();};
+ $("f").onsubmit=async e=>{e.preventDefault();$("err").textContent="";$("ok").textContent="";
+  const name=$("name").value.trim(),phone=$("phone").value.replace(/[\s-]/g,""),date=$("date").value,time=$("time").value,bid=$("bird").value;
+  if(name.length<2)return $("err").textContent="Please enter your full name.";
+  if(!/^(09|\+639)\d{9}$/.test(phone))return $("err").textContent="Enter a valid phone number, e.g. 09123456789.";
+  if(!date||date<$("date").min)return $("err").textContent="Please choose today or a future date.";
+  if(!time)return $("err").textContent="Please choose a time.";
+  if(!bid)return $("err").textContent="Please choose a bird.";
+  const b=birds.find(x=>x.id===bid);$("go").disabled=true;
+  const slotId=date+"_"+time.replace(":","");
+  try{await setDoc(doc(db,"slots",slotId),{uid:user.uid,at:serverTimestamp()});}
+  catch{$("go").disabled=false;return $("err").textContent="That date and time is already taken. Please pick another.";}
+  try{await addDoc(collection(db,"appointments"),{uid:user.uid,name,phone,email:user.email,date,time,birdId:bid,birdName:b.name+" ("+b.breed+")",message:$("msg").value.trim(),status:"Pending",slotId,createdAt:serverTimestamp()});
+   $("ok").textContent="Appointment sent! We will confirm it soon. Pay in person at the farm.";$("f").reset();$("name").value=name;mine();
+  }catch{$("err").textContent="Could not save your appointment. Please try again.";}
+  $("go").disabled=false;
+ };
+}
+</script></body></html>

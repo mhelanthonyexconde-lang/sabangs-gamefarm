@@ -1,0 +1,33 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"><link rel="stylesheet" href="css/style.css"><title>Sabang’s Gamefarm – Gamecocks &amp; Farm Visits</title></head><body>
+<div id="nav"></div>
+<div class="herow" id="hero"><div class="wrap hero"><div>
+<h1><span class="gold">Superior breed.</span><br>Quality and tradition. Est. 2026.</h1>
+<p>Sweater, Pumpkin Hatch, Golden Boy and Hatch, bred and trained on our farm. Pick a bird, book a visit and see it in person.</p>
+<a class="btn" href="gamecocks.html">Browse gamecocks</a> <a class="btn alt" href="book.html">Book a farm visit</a></div>
+<div class="badge"><img src="img/logo.png" alt="Sabang’s Gamefarm: Superior Breed, Quality and Tradition"></div></div></div>
+<div class="rope"></div>
+<div class="marq"><div id="mq"></div></div>
+<section class="wrap rv"><h2 class="gold">Shop by category</h2><div class="grid" id="cats"></div></section>
+<section class="wrap rv" style="padding-top:0"><h2 class="gold">Our breeds</h2><div class="grid" id="breeds"></div></section>
+<section class="wrap rv" style="padding-top:0"><h2 class="gold">Latest available birds</h2><div class="grid" id="latest"><p class="mut">Loading…</p></div></section>
+<section class="band rv"><div class="wrap"><h2 class="gold">How it works</h2><div class="steps">
+<div><b>1</b><h3>Browse birds</h3>Search or filter by breed, category and weight.</div>
+<div><b>2</b><h3>Reserve</h3>Pick the bird you want and send your request.</div>
+<div><b>3</b><h3>Book a visit</h3>Choose a date and time that works for you.</div>
+<div><b>4</b><h3>Visit and pay</h3>See the bird in person and pay at the farm.</div></div></div></section>
+<div id="foot"></div>
+<script type="module">
+import {initNav,initFooter,db,collection,getDocs,birdCard,CATS,BREEDS,esc} from "./js/app.js";
+initNav("home");initFooter();
+const $=id=>document.getElementById(id);
+$("mq").innerHTML=(BREEDS.join("<span>✦</span>")+"<span>✦</span>").repeat(8);
+$("cats").innerHTML=CATS.map(c=>`<div class="cat"><h3>${esc(c)}</h3><a href="gamecocks.html?cat=${encodeURIComponent(c)}">View birds →</a></div>`).join("");
+$("breeds").innerHTML=BREEDS.map(b=>`<div class="cat"><h3>${esc(b)}</h3><a href="gamecocks.html?breed=${encodeURIComponent(b)}">View birds →</a></div>`).join("");
+for(let i=0;i<22;i++){const e=document.createElement("i");e.className="ember";e.style.cssText=`left:${Math.random()*100}%;--x:${Math.random()*120-60}px;animation-duration:${6+Math.random()*7}s;animation-delay:${Math.random()*8}s`;$("hero").appendChild(e);}
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target);}}),{threshold:.15});
+document.querySelectorAll(".rv").forEach(x=>io.observe(x));
+try{const s=await getDocs(collection(db,"birds"));
+const l=s.docs.map(d=>({id:d.id,...d.data()})).filter(b=>(b.status||"Available")==="Available").sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).slice(0,3);
+$("latest").innerHTML=l.length?l.map(birdCard).join(""):'<p class="mut">No birds listed yet.</p>';
+}catch(e){$("latest").innerHTML='<p class="mut">Could not load birds.</p>';}
+</script></body></html>

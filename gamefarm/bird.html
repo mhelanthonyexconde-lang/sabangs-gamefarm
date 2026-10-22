@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"><link rel="stylesheet" href="css/style.css"><title>Gamecock details – Sabang’s Gamefarm</title></head><body>
+<div id="nav"></div>
+<main class="wrap"><p><a href="gamecocks.html">&larr; Back to all gamecocks</a></p>
+<div id="box"><p class="mut">Loading…</p></div>
+<div id="more" style="display:none"><h2 style="margin-top:40px">More from this breed</h2><div class="grid" id="rel"></div></div></main>
+<div id="foot"></div>
+<script type="module">
+import {initNav,initFooter,db,collection,getDocs,getDoc,doc,birdCard,esc} from "./js/app.js";
+initNav("birds");initFooter();
+const $=id=>document.getElementById(id),id=new URLSearchParams(location.search).get("bird");
+try{
+ const s=id?await getDoc(doc(db,"birds",id)):null;
+ if(!s||!s.exists()){$("box").innerHTML='<div class="card pad"><h2>Bird not found</h2><p>This gamecock may have been removed. <a href="gamecocks.html">Browse all gamecocks</a>.</p></div>';}
+ else{
+  const b={id:s.id,...s.data()},ok=(b.status||"Available")==="Available";
+  document.title=b.name+" – Sabang’s Gamefarm";
+  $("box").innerHTML=`<div class="card" style="display:flex;flex-wrap:wrap">
+   <div style="flex:1 1 380px;background:#1a0f0a;min-height:320px">${b.image?`<img src="${b.image}" alt="${esc(b.name)}" style="width:100%;height:100%;object-fit:cover;display:block">`:`<div class="mut" style="padding:120px 20px;text-align:center">No photo</div>`}</div>
+   <div class="pad" style="flex:1 1 380px;padding:32px">
+    <span class="tag ${ok?"ok":"no"}">${esc(b.status||"Available")}</span>
+    <h1 style="margin:12px 0 4px">${esc(b.name)}</h1>
+    <p class="mut" style="font-size:16px">${esc(b.breed)} · ${esc(b.category)}</p>
+    <table><tbody><tr><th>Breed</th><td>${esc(b.breed)}</td></tr><tr><th>Category</th><td>${esc(b.category)}</td></tr><tr><th>Weight</th><td>${esc(b.weight)} lbs</td></tr><tr><th>Price</th><td>₱${Number(b.price||0).toLocaleString()}</td></tr></tbody></table>
+    <p class="mut">Pay in person at the farm. No online payment.</p>
+    ${ok?`<a class="btn" style="width:100%" href="book.html?bird=${b.id}">Reserve &amp; Book Visit</a>`:`<span class="btn dis" style="width:100%">Not available</span>`}
+   </div></div>`;
+  const all=(await getDocs(collection(db,"birds"))).docs.map(d=>({id:d.id,...d.data()}));
+  const rel=all.filter(x=>x.id!==b.id&&x.breed===b.breed&&(x.status||"Available")==="Available").slice(0,3);
+  if(rel.length){$("rel").innerHTML=rel.map(birdCard).join("");$("more").style.display="";}
+ }
+}catch(e){$("box").innerHTML='<div class="card pad"><p class="mut">Could not load this bird. Please try again.</p></div>';}
+</script></body></html>

@@ -1,0 +1,68 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"><link rel="stylesheet" href="css/style.css"><title>Admin – Sabang’s Gamefarm</title></head><body>
+<div id="nav"></div>
+<main class="wrap" id="root"><p class="mut">Loading…</p></main>
+<template id="tpl">
+<h2>Admin dashboard</h2><div class="stats" id="stats"></div>
+<div class="tabs"><button data-t="birds" class="on">Manage gamecocks</button><button data-t="appts">Appointments</button></div>
+<section id="birds">
+<form class="card form" id="bf"><h3 class="full" id="bt" style="margin:0">Add a gamecock</h3>
+<div><label for="bn">Name</label><input id="bn"></div>
+<div><label for="bb">Breed</label><select id="bb"></select></div>
+<div><label for="bc">Category</label><select id="bc"></select></div>
+<div><label for="bs">Status</label><select id="bs"><option>Available</option><option>Reserved</option><option>Sold</option></select></div>
+<div><label for="bw">Weight (lbs)</label><input id="bw" type="number" min="0" step="0.1"></div>
+<div><label for="bp">Price (₱)</label><input id="bp" type="number" min="0"></div>
+<div class="full"><label for="bi">Photo</label><input id="bi" type="file" accept="image/*"></div>
+<div class="full"><p class="err" id="be"></p><button class="btn" id="bsave">Save gamecock</button> <button type="button" class="btn alt" id="bcancel" style="display:none">Cancel edit</button></div></form>
+<div class="card scroll" style="margin-top:24px"><table><thead><tr><th>Photo</th><th>Name</th><th>Breed</th><th>Category</th><th>Weight</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody id="brows"></tbody></table></div></section>
+<section id="appts" style="display:none"><div class="card scroll"><table><thead><tr><th>Date</th><th>Time</th><th>Customer</th><th>Phone</th><th>Bird</th><th>Message</th><th>Status</th></tr></thead><tbody id="arows"></tbody></table></div></section>
+</template>
+<script type="module">
+import {initNav,whenUser,checkAdmin,db,collection,getDocs,addDoc,updateDoc,deleteDoc,doc,serverTimestamp,esc,toast,BREEDS,CATS} from "./js/app.js";
+initNav("admin");
+const root=document.getElementById("root"),$=id=>document.getElementById(id);
+const user=await whenUser();
+if(!(await checkAdmin(user))){root.innerHTML='<div class="card pad"><h2>Admin only</h2><p>Please <a href="login.html?next=admin.html">log in</a> with an admin account.</p></div>';}
+else{
+ root.innerHTML="";root.appendChild(document.getElementById("tpl").content.cloneNode(true));
+ BREEDS.forEach(b=>$("bb").add(new Option(b,b)));CATS.forEach(c=>$("bc").add(new Option(c,c)));
+ document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("on",x===b));$("birds").style.display=b.dataset.t==="birds"?"":"none";$("appts").style.display=b.dataset.t==="appts"?"":"none";});
+ let birds=[],appts=[],editId=null,img="";
+ const resize=f=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>{const i=new Image();i.onload=()=>{const k=Math.min(1,480/Math.max(i.width,i.height)),w=Math.round(i.width*k),c=document.createElement("canvas");c.width=w;c.height=Math.round(i.height*k);c.getContext("2d").drawImage(i,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.6));};i.onerror=no;i.src=r.result;};r.onerror=no;r.readAsDataURL(f);});
+ $("bi").onchange=async e=>{if(e.target.files[0])img=await resize(e.target.files[0]);};
+ async function load(){
+  birds=(await getDocs(collection(db,"birds"))).docs.map(d=>({id:d.id,...d.data()}));
+  appts=(await getDocs(collection(db,"appointments"))).docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  const today=new Date().toLocaleDateString("en-CA");
+  $("stats").innerHTML=[["Total birds",birds.length],["Available",birds.filter(b=>(b.status||"Available")==="Available").length],["Pending appointments",appts.filter(a=>a.status==="Pending").length],["Today's appointments",appts.filter(a=>a.date===today&&a.status!=="Cancelled").length]].map(s=>`<div class="card"><b>${s[1]}</b>${s[0]}</div>`).join("");
+  $("brows").innerHTML=birds.length?birds.map(b=>`<tr><td>${b.image?'<img src="'+b.image+'" alt="">':""}</td><td>${esc(b.name)}</td><td>${esc(b.breed)}</td><td>${esc(b.category)}</td><td>${esc(b.weight)} lbs</td><td>₱${Number(b.price||0).toLocaleString()}</td>
+   <td><select data-s="${b.id}">${["Available","Reserved","Sold"].map(s=>`<option${(b.status||"Available")===s?" selected":""}>${s}</option>`).join("")}</select></td>
+   <td><button class="btn sm" data-e="${b.id}">Edit</button> <button class="btn sm red" data-d="${b.id}">Delete</button></td></tr>`).join(""):'<tr><td colspan="8">No birds yet. Add one above.</td></tr>';
+  $("arows").innerHTML=appts.length?appts.map(a=>`<tr><td>${esc(a.date)}</td><td>${esc(a.time)}</td><td>${esc(a.name)}<br><span class="mut">${esc(a.email)}</span></td><td>${esc(a.phone)}</td><td>${esc(a.birdName)}</td><td>${esc(a.message)}</td>
+   <td><select data-a="${a.id}">${["Pending","Confirmed","Completed","Cancelled"].map(s=>`<option${a.status===s?" selected":""}>${s}</option>`).join("")}</select></td></tr>`).join(""):'<tr><td colspan="7">No appointments yet.</td></tr>';
+ }
+ root.addEventListener("change",async e=>{
+  const t=e.target;
+  if(t.dataset.s){await updateDoc(doc(db,"birds",t.dataset.s),{status:t.value});toast("Status updated");load();}
+  if(t.dataset.a){const a=appts.find(x=>x.id===t.dataset.a);await updateDoc(doc(db,"appointments",a.id),{status:t.value});
+   if(t.value==="Cancelled"&&a.slotId){try{await deleteDoc(doc(db,"slots",a.slotId));}catch{}}toast("Appointment updated");load();}
+ });
+ root.addEventListener("click",async e=>{
+  const t=e.target;
+  if(t.dataset.d&&confirm("Delete this gamecock?")){await deleteDoc(doc(db,"birds",t.dataset.d));toast("Deleted");load();}
+  if(t.dataset.e){const b=birds.find(x=>x.id===t.dataset.e);editId=b.id;img=b.image||"";$("bt").textContent="Edit gamecock";
+   $("bn").value=b.name;$("bb").value=b.breed;$("bc").value=b.category;$("bs").value=b.status||"Available";$("bw").value=b.weight;$("bp").value=b.price;$("bcancel").style.display="";scrollTo(0,0);}
+ });
+ function reset(){editId=null;img="";$("bf").reset();$("bt").textContent="Add a gamecock";$("bcancel").style.display="none";}
+ $("bcancel").onclick=reset;
+ $("bf").onsubmit=async e=>{e.preventDefault();$("be").textContent="";
+  const d={name:$("bn").value.trim(),breed:$("bb").value,category:$("bc").value,status:$("bs").value,weight:Number($("bw").value),price:Number($("bp").value),image:img};
+  if(d.name.length<2)return $("be").textContent="Please enter the bird's name.";
+  if(!(d.weight>0))return $("be").textContent="Enter a weight greater than 0.";
+  if(!(d.price>=0)||$("bp").value==="")return $("be").textContent="Enter a valid price.";
+  try{if(editId)await updateDoc(doc(db,"birds",editId),d);else await addDoc(collection(db,"birds"),{...d,createdAt:serverTimestamp()});
+   toast("Saved");reset();load();}catch(er){$("be").textContent="Could not save: "+(er.code||er.message);console.error(er);}
+ };
+ load();
+}
+</script></body></html>

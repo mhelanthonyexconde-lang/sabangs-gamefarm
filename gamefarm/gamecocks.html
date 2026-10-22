@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"><link rel="stylesheet" href="css/style.css"><title>Gamecocks – Sabang’s Gamefarm</title></head><body>
+<div id="nav"></div>
+<main class="wrap"><h2>Available gamecocks</h2>
+<div class="filters"><input id="q" placeholder="Search name or breed" aria-label="Search">
+<select id="breed" aria-label="Breed"><option value="">All breeds</option></select>
+<select id="cat" aria-label="Category"><option value="">All categories</option></select>
+<select id="avail" aria-label="Status"><option value="Available">Available only</option><option value="">Show all</option></select>
+<select id="sort" aria-label="Sort"><option value="new">Newest</option><option value="wl">Weight: low to high</option><option value="wh">Weight: high to low</option><option value="pl">Price: low to high</option><option value="ph">Price: high to low</option></select></div>
+<p class="mut" id="count"></p><div class="grid" id="list"><p class="mut">Loading…</p></div></main>
+<div id="foot"></div>
+<script type="module">
+import {initNav,initFooter,db,collection,getDocs,birdCard,CATS,BREEDS} from "./js/app.js";
+initNav("birds");initFooter();
+const P=new URLSearchParams(location.search),$=id=>document.getElementById(id);
+BREEDS.forEach(b=>$("breed").add(new Option(b,b)));CATS.forEach(c=>$("cat").add(new Option(c,c)));
+$("q").value=P.get("q")||"";$("breed").value=P.get("breed")||"";$("cat").value=P.get("cat")||"";
+let birds=[];
+try{birds=(await getDocs(collection(db,"birds"))).docs.map(d=>({id:d.id,...d.data()}));}catch(e){$("list").innerHTML='<p class="mut">Could not load birds.</p>';}
+function show(){
+ const q=$("q").value.toLowerCase().trim();
+ let r=birds.filter(b=>(!q||(b.name+" "+b.breed).toLowerCase().includes(q))&&(!$("breed").value||b.breed===$("breed").value)&&(!$("cat").value||b.category===$("cat").value)&&(!$("avail").value||(b.status||"Available")===$("avail").value));
+ const s=$("sort").value,n=x=>Number(x)||0;
+ r.sort((a,b)=>s==="wl"?n(a.weight)-n(b.weight):s==="wh"?n(b.weight)-n(a.weight):s==="pl"?n(a.price)-n(b.price):s==="ph"?n(b.price)-n(a.price):(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+ $("count").textContent=r.length+" bird(s) found";
+ $("list").innerHTML=r.length?r.map(birdCard).join(""):'<p class="mut">No birds match your search.</p>';
+}
+["q","breed","cat","avail","sort"].forEach(i=>$(i).addEventListener("input",show));show();
+</script></body></html>

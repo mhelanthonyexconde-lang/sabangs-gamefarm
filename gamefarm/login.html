@@ -1,0 +1,27 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"><link rel="stylesheet" href="css/style.css"><title>Login – Sabang’s Gamefarm</title></head><body>
+<div id="nav"></div>
+<main class="wrap" style="max-width:480px"><div class="card pad"><h2 id="ttl">Login</h2>
+<form id="f"><div id="nm" style="display:none"><label for="name">Full name</label><input id="name" autocomplete="name"></div>
+<label for="email" style="margin-top:12px">Email</label><input id="email" type="email" autocomplete="email" required>
+<label for="pw" style="margin-top:12px">Password (at least 6 characters)</label><input id="pw" type="password" autocomplete="current-password" required>
+<p class="err" id="err"></p><button class="btn" style="width:100%" id="go">Login</button></form>
+<p class="mut" style="text-align:center"><a href="#" id="sw">No account yet? Sign up</a></p></div></main>
+<div id="foot"></div>
+<script type="module">
+import {initNav,initFooter,auth,signInWithEmailAndPassword,createUserWithEmailAndPassword,updateProfile,checkAdmin} from "./js/app.js";
+initNav("");initFooter();
+const $=id=>document.getElementById(id);let signup=false;
+$("sw").onclick=e=>{e.preventDefault();signup=!signup;$("nm").style.display=signup?"block":"none";$("ttl").textContent=signup?"Create account":"Login";$("go").textContent=signup?"Sign up":"Login";$("sw").textContent=signup?"Already have an account? Login":"No account yet? Sign up";$("err").textContent="";};
+$("f").onsubmit=async e=>{e.preventDefault();$("err").textContent="";
+ const email=$("email").value.trim(),pw=$("pw").value,name=$("name").value.trim();
+ if(signup&&name.length<2){$("err").textContent="Please enter your full name.";return;}
+ if(pw.length<6){$("err").textContent="Password must be at least 6 characters.";return;}
+ try{let c;
+  if(signup){c=await createUserWithEmailAndPassword(auth,email,pw);await updateProfile(c.user,{displayName:name});}
+  else c=await signInWithEmailAndPassword(auth,email,pw);
+  let next=new URLSearchParams(location.search).get("next");
+  if(!next||next.includes("://")||next.startsWith("//"))next=(await checkAdmin(c.user))?"admin.html":"index.html";
+  location.href=next;
+ }catch(er){const m={"auth/invalid-credential":"Wrong email or password.","auth/email-already-in-use":"That email is already registered.","auth/invalid-email":"Please enter a valid email.","auth/weak-password":"Password is too weak."};$("err").textContent=m[er.code]||"Something went wrong. Please try again.";}
+};
+</script></body></html>
